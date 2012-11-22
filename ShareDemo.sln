@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DemoMainServer", "ShareDemo\ShareDemo.vcproj", "{0B90ED88-AE22-4932-9406-35252629BD5F}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShareClient", "ShareClient\ShareClient.vcproj", "{F318B04E-FD85-42AA-B02D-CD5426B8217E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0B90ED88-AE22-4932-9406-35252629BD5F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0B90ED88-AE22-4932-9406-35252629BD5F}.Debug|Win32.Build.0 = Debug|Win32
+		{0B90ED88-AE22-4932-9406-35252629BD5F}.Release|Win32.ActiveCfg = Release|Win32
+		{0B90ED88-AE22-4932-9406-35252629BD5F}.Release|Win32.Build.0 = Release|Win32
+		{F318B04E-FD85-42AA-B02D-CD5426B8217E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F318B04E-FD85-42AA-B02D-CD5426B8217E}.Debug|Win32.Build.0 = Debug|Win32
+		{F318B04E-FD85-42AA-B02D-CD5426B8217E}.Release|Win32.ActiveCfg = Release|Win32
+		{F318B04E-FD85-42AA-B02D-CD5426B8217E}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
