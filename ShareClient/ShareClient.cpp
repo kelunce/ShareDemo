@@ -19,18 +19,18 @@ using namespace std;
 //接收回调 [LCM 2012/11/22  15:05]
 class CMyShareMemSink:public IMsgSink
 {
-	void OnRecv(short msgID,void * pmsg,short nSize)
+	void OnRecv(unsigned short msgType,void * pmsg)
 	{
 		//cout<<"recv:"<<"msgid="<<msgID<<" size="<<nSize<<endl;
-		if(msgID == MSG_CMD_TYPE)
+		if(msgType == MSG_TYPE_CMD)
 		{
-			MsgCommand *pCmd = (MsgCommand *)pmsg;
-			wcout<<_T("recv cmd id=")<<pCmd->cmdID<<endl;
+			tagMsgCommand::MsgInfo *pCmd = (tagMsgCommand::MsgInfo *)pmsg;
+			wcout<<_T("recv cmd id=")<< pCmd->unCmdID<<endl;
 			return;
 		}
-		else if (msgID == MSG_TEXT)
+		else if (msgType == MSG_TYPE_TEXT)
 		{
-			MsgTalk *pTalk = (MsgTalk *)pmsg;
+            tagMsgTalk::MsgInfo *pTalk = (tagMsgTalk::MsgInfo *)pmsg;
 			wcout<<_T("recv words=")<<pTalk->szText<<endl;
 			return ;
 		}
@@ -66,26 +66,21 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 		//主线程去做其他的事情 [LCM 2012/11/22  14:56]
 		while(true)
 		{
-			Sleep(5000);
+			Sleep(1000);
 
-			DWORD dwTime = GetTickCount();
 			if(rand()%100 > 50)			
 			{
 				short nCmdID = 800 + rand()%100;
-				MsgCommand msg(nCmdID);
-				if(pApiMgr->SendMsg(&msg,sizeof(msg)))
-					wcout<<dwTime<<_T(": send cmd id=")<<nCmdID<<"    ok"<<endl;
-				else
-					wcout<<dwTime<<_T(": send cmd id=")<<nCmdID<<"    fail"<<endl;
+				tagMsgCommand msg(nCmdID);
+				pApiMgr->SendMsg(msg.m_pinfo);
+				wcout<<_T("send cmd id=")<<nCmdID<<endl;
 			}
 			else
 			{
 				TCHAR *pWords = _T("冬天来了,天气还是这么热哈!");
-				MsgTalk msg(pWords,wcslen(pWords));
-				if(pApiMgr->SendMsg(&msg,sizeof(msg)))
-					wcout<<dwTime<<_T(": send str=")<<pWords<<"     ok"<<endl;
-				else
-					wcout<<dwTime<<_T(": send str=")<<pWords<<"     fail"<<endl;
+				tagMsgTalk msg(pWords,wcslen(pWords));
+				pApiMgr->SendMsg(msg.m_pinfo);
+				wcout<<_T("send str=")<<pWords<<endl;
 			}
 		}
 	}

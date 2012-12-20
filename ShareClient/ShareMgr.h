@@ -22,13 +22,13 @@ public:
 
 public:
 	bool	InitShareMgr();
-	bool	SendMsg(const void *pMsg, unsigned int nMsgSize);
+	bool	SendMsg(const void *pMsg);
 	bool	SetRecvHandle(IMsgSink *pHandle);
 
 	//内部 [LCM 2012/11/22  14:54]
 private:
 	//内部收信息 [LCM 2012/11/22  14:26]	
-	bool	RecvMsg(TCHAR *pMsg, unsigned int &nMsgSize);
+	bool	RecvMsg(BYTE const *pMsg, unsigned int &nMsgSize);
 
 	//内部线程入口 [LCM 2012/11/22  14:26]
 	friend static unsigned __stdcall Process(void * pThis);
@@ -40,13 +40,18 @@ private:
 private:
 	unsigned int	m_nError;
 	
-	HANDLE	m_hWriteEvent;	 //写事件 [LCM 2012/11/19  9:29]
+    //写事件 [LCM 2012/11/19  9:29]
+	HANDLE	m_hWriteEvent;
 	HANDLE  m_hWriteMutex;
 	HANDLE  m_hWriteFileMap;
 	LPVOID  m_hWriteViewBuf; 
 
-	HANDLE	m_hReadEvent;	 //读事件 [LCM 2012/11/19  9:29]
+    //读事件 [LCM 2012/11/19  9:29]
+	HANDLE	m_hReadEvent;	 
 	HANDLE  m_hReadMutex;
 	HANDLE  m_hReadFileMap; 
 	LPVOID  m_hReadViewBuf;  
+
+    //发送缓冲区
+    //std::vector<tagMsgBase> m_vecSend;
 };

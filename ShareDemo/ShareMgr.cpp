@@ -3,7 +3,7 @@
 
 
 static CShareMemMgr* g_pShareMemMgr = NULL;
-const int _MAX_SHARE_BYTES = 2048;
+
 const TCHAR * szWriteEventName = _T("8257D348B9C645cfA79E59788E04F84B");
 const TCHAR * szWriteMutex = _T("132E0E5A25D946298C90FAE8821D7E18");
 const TCHAR * szWriteMemeryName = _T("FEF2AEC802494efeA1B2393B3316C9A9");
@@ -77,14 +77,14 @@ bool CShareMemMgr::InitShareMgr()
 		return false;
 	}
 
-	m_hWriteViewBuf = MapViewOfFile(m_hWriteFileMap,FILE_MAP_WRITE,0,0,_MAX_SHARE_BYTES);
+	m_hWriteViewBuf = MapViewOfFile(m_hWriteFileMap,FILE_MAP_ALL_ACCESS,0,0,_MAX_SHARE_BYTES);
 
 	m_hReadFileMap = CreateFileMapping((HANDLE)0xFFFFFFFF,NULL,PAGE_READWRITE,	0,_MAX_SHARE_BYTES,szReadMemeryName);
 	if (GetLastError() != 0)
 	{
 		return false;
 	}
-	m_hReadViewBuf = MapViewOfFile(m_hReadFileMap,FILE_MAP_READ,0,0,_MAX_SHARE_BYTES);
+    m_hReadViewBuf = MapViewOfFile(m_hReadFileMap,FILE_MAP_ALL_ACCESS,0,0,_MAX_SHARE_BYTES);
 
 	//启动监听线程 [LCM 2012/11/22  14:54]
 	_beginthreadex(NULL,0,Process,(void*)this,0,0);
@@ -93,71 +93,70 @@ bool CShareMemMgr::InitShareMgr()
 	return true;
 }
 
-bool CShareMemMgr::SendMsg( const void *pMsg, unsigned int nMsgSize )
+bool CShareMemMgr::SendMsg(const void *pMsg)
 {
 	if (pMsg != NULL)
 	{
-		if(nMsgSize > _MAX_MSG_BUFF)
-			return false;
-
 		if (m_hWriteViewBuf == NULL)
-			return false;
-
-		if (nMsgSize == 0)
-			return false;
-
-		int nTryTimes =  3;
-		while (nTryTimes > 0)
+			return false;		
+		
+		DWORD dwRet = WaitForSingleObject(m_hWriteMutex, 30);
+		if(dwRet == WAIT_OBJECT_0)
 		{
-			DWORD dwRet = WaitForSingleObject(m_hWriteMutex, 10);
-			if(dwRet == WAIT_OBJECT_0)
-			{
-				SHARE_MSG_BUFF * pBuff = (SHARE_MSG_BUFF *)m_hWriteViewBuf;
-				pBuff->nSize = nMsgSize;
-				CopyMemory(pBuff->szBuff,pMsg,nMsgSize);
-				SetEvent(m_hWriteEvent);
-				ReleaseMutex(m_hWriteMutex);
-				return true;
-			}
-			else if(dwRet == WAIT_ABANDONED)
-			{
-				ReleaseMutex(m_hWriteMutex);
-			}
-			nTryTimes--;
+			SHARE_MSG_BUFF * pBuff = (SHARE_MSG_BUFF *)m_hWriteViewBuf;
+            if(pBuff->nSize >= _MAX_SHARE_MSG - 1)
+            {
+                ReleaseMutex(m_hWriteMutex);
+                return false;
+            }
+
+            /*优化建议:
+                1.这里复制了_MAX_MSG_BUFF的大小,可以进一步优化,去除冗余复制.
+                2.建议在外层建立发送缓冲区.每次获得互斥量时,尽量多写入几个消息,而不是每次只写入一个*/
+            CopyMemory(pBuff->szBuff + pBuff->nSize * _MAX_MSG_BUFF,pMsg,_MAX_MSG_BUFF);
+			pBuff->nSize += 1;
+			
+			SetEvent(m_hWriteEvent);
+			ReleaseMutex(m_hWriteMutex);
+			return true;
 		}
+		else if(dwRet == WAIT_ABANDONED)
+		{
+			ReleaseMutex(m_hWriteMutex);
+		}			
+		
 	}
 	return false;
 }
 
-bool CShareMemMgr::RecvMsg( TCHAR *pMsg, unsigned int &nMsgSize )
+bool CShareMemMgr::RecvMsg( BYTE const *pMsg, unsigned int &nMsgSize )
 {
-	if (pMsg != NULL)
-	{
-		if(nMsgSize > _MAX_MSG_BUFF)
-			return false;
+    nMsgSize = 0;
 
-		 if(WaitForSingleObject(m_hReadEvent, 10) == WAIT_OBJECT_0)
-		 {
-			 int nTryTime = 3;
-			 while(nTryTime > 0)
-			 {
-				 DWORD  dwMutex = WaitForSingleObject(m_hReadMutex, 0);
-				 if(dwMutex == WAIT_OBJECT_0)
-				 {
-					 SHARE_MSG_BUFF * pBuff = (SHARE_MSG_BUFF *)m_hReadViewBuf;
-					 nMsgSize = pBuff->nSize;
-					 CopyMemory(pMsg,pBuff->szBuff,nMsgSize);
-					 ReleaseMutex(m_hReadMutex);
-					 return true;
-				 }		
-				 else if (dwMutex == WAIT_ABANDONED)
-				 {
-					 ReleaseMutex(m_hReadMutex);
-				 }
-				 nTryTime--;
-			 }
-		 }
-	}
+    if (pMsg == NULL)
+    {
+        return false;
+    }
+
+    if(WaitForSingleObject(m_hReadEvent, 10) == WAIT_OBJECT_0)
+    {        
+        DWORD  dwMutex = WaitForSingleObject(m_hReadMutex, 30);
+        if(dwMutex == WAIT_OBJECT_0)
+        {
+            SHARE_MSG_BUFF * pBuff = (SHARE_MSG_BUFF *)m_hReadViewBuf;
+            nMsgSize = pBuff->nSize;
+            CopyMemory((void*)pMsg,pBuff->szBuff,nMsgSize*_MAX_MSG_BUFF);
+
+            pBuff->nSize = 0;
+            ReleaseMutex(m_hReadMutex);
+            return true;
+        }
+        else if (dwMutex == WAIT_ABANDONED)
+        {
+            ReleaseMutex(m_hReadMutex);
+        }      
+    }
+
 	return false;
 }
 
@@ -166,22 +165,27 @@ unsigned __stdcall Process(void *pThis)
 	if(pThis == NULL)
 		return 1;
 
+    /*注意:
+      1.请使用byte,不要使用TCHAR,否则下面的指针算术会不正常.
+        在unicode编码下,TCHAR是占2个字节,每移动一个单位指针
+        也就是移动2个字节.
+      2.请使用堆内存,否则很可能栈溢出.默认的占大小为1M 
+    */
+    BYTE const *szMsg = new BYTE[_MAX_SHARE_BYTES];
+    unsigned int nSize = 0;
 	CShareMemMgr *pMgr = (CShareMemMgr *)pThis;
 	while(true)
 	{
-		TCHAR szMsg[_MAX_SHARE_BYTES] = {0};
-		unsigned int nSize = 0;
-		if(pMgr->RecvMsg(szMsg,nSize))
-		{
-			const short *pMsgID = (const short *)szMsg;
-			if( (*pMsgID <= 0 )|| (*pMsgID >1024))
-				continue;
+		if(!pMgr->RecvMsg(szMsg,nSize)) continue;
 
-			//msg process [LCM 2012/11/22  13:53]
-			if(pMgr->m_Handle != NULL)
-				pMgr->m_Handle->OnRecv(*pMsgID,szMsg,nSize);
+        for (int i = 0; i < nSize ; ++i)
+		{
+            tagMsgBase *pBuff = (tagMsgBase*)(szMsg + i * _MAX_MSG_BUFF);
+            if(pMgr->m_Handle != NULL)
+                pMgr->m_Handle->OnRecv(pBuff->unMsgType,(void*)pBuff);
 		}
 	}
+    delete [] szMsg;
 	return 1;
 }
 
